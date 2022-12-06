@@ -128,15 +128,15 @@ jobs:
           fi
           sudo install /tmp/minikube /usr/local/bin/minikube
           sudo chmod a+x /usr/local/bin/minikube
+          sudo sysctl fs.protected_regular=0
 
       - name: Start minikube
-        env:
-          MINIKUBE_IN_STYLE: "false"
-          MINIKUBE_WANTUPDATENOTIFICATION: "false"
-          MINIKUBE_WANTREPORTERRORPROMPT: "false"
-          CHANGE_MINIKUBE_NONE_USER: "true"
-        run:
-          sudo "PATH=$PATH" -E /usr/local/bin/minikube start --vm-driver=none --wait=true --extra-config=kubeadm.ignore-preflight-errors=FileExisting-crictl --kubernetes-version=${{ matrix.K8S_VERSION }}
+        run: |
+          minikube start --container-runtime=docker --cpus 2 --memory 4096 --kubernetes-version=${{ matrix.K8S_VERSION }} --no-vtx-check
+          export JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}'
+          until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do
+            sleep 1;
+          done
 
       - name: Run test
         run: |
